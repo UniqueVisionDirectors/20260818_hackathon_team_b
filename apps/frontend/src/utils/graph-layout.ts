@@ -56,6 +56,149 @@ export const randomSphereLayout: LayoutFn = (
 }
 
 
+/**
+ * 力学モデル (Force-directed) 配置
+ *
+ * 化合物の分子モデルのように、頂点間の反発力と辺の引力をシミュレーションして
+ * 安定した自然な 3D 配置を計算します (Fruchterman-Reingold 系のアルゴリズム)。
+ */
+export const forceDirectedLayout: LayoutFn = (
+  data: GraphData,
+  radius = 50,
+): GraphNode3D[] => {
+  const nodes = createEmptyNodes(data.nodeCount)
+
+  // 1. 初期配置 (ランダムな小さな領域内に配置)
+  for (const node of nodes) {
+    node.x = (Math.random() - 0.5) * radius
+    node.y = (Math.random() - 0.5) * radius
+    node.z = (Math.random() - 0.5) * radius
+  }
+
+  // シミュレーションのパラメータ
+  const iterations = 100        // シミュレーション回数
+  // radius を基準とした理想的なバネの長さ。頂点数が多いほど密にならないよう調整
+  const k = (radius * 1.5) / Math.cbrt(data.nodeCount > 0 ? data.nodeCount : 1)
+  const kSquared = k * k
+  let temperature = radius      // 初期温度（1回の移動量の最大値）
+
+  for (let i = 0; i < iterations; i++) {
+    const displacements = nodes.map(() => ({ dx: 0, dy: 0, dz: 0 }))
+
+    // 2. 反発力の計算 (全頂点ペア)
+    for (let v = 0; v < nodes.length; v++) {
+      for (let u = v + 1; u < nodes.length; u++) {
+        const nodeV = nodes[v]
+        const nodeU = nodes[u]
+        const dispV = displacements[v]
+        const dispU = displacements[u]
+        if (!nodeV || !nodeU || !dispV || !dispU) continue
+
+        let dx = nodeV.x - nodeU.x
+        let dy = nodeV.y - nodeU.y
+        let dz = nodeV.z - nodeU.z
+
+        let distSquared = dx * dx + dy * dy + dz * dz
+        if (distSquared === 0) {
+          dx = (Math.random() - 0.5) * 0.1
+          dy = (Math.random() - 0.5) * 0.1
+          dz = (Math.random() - 0.5) * 0.1
+          distSquared = dx * dx + dy * dy + dz * dz
+        }
+
+        const dist = Math.sqrt(distSquared)
+        const force = kSquared / dist // クーロン反発力
+
+        const forceX = (dx / dist) * force
+        const forceY = (dy / dist) * force
+        const forceZ = (dz / dist) * force
+
+        dispV.dx += forceX
+        dispV.dy += forceY
+        dispV.dz += forceZ
+
+        dispU.dx -= forceX
+        dispU.dy -= forceY
+        dispU.dz -= forceZ
+      }
+    }
+
+    // 3. 引力の計算 (辺で繋がれた頂点)
+    for (const edge of data.edges) {
+      const v = edge.source
+      const u = edge.target
+      
+      const nodeV = nodes[v]
+      const nodeU = nodes[u]
+      const dispV = displacements[v]
+      const dispU = displacements[u]
+      if (!nodeV || !nodeU || !dispV || !dispU) continue
+
+      const dx = nodeV.x - nodeU.x
+      const dy = nodeV.y - nodeU.y
+      const dz = nodeV.z - nodeU.z
+
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      if (dist === 0) continue
+
+      const force = (dist * dist) / k // フックの法則による引力
+
+      const forceX = (dx / dist) * force
+      const forceY = (dy / dist) * force
+      const forceZ = (dz / dist) * force
+
+      dispV.dx -= forceX
+      dispV.dy -= forceY
+      dispV.dz -= forceZ
+
+      dispU.dx += forceX
+      dispU.dy += forceY
+      dispU.dz += forceZ
+    }
+
+    // 4. 座標の更新 (温度による移動量の制限)
+    for (let v = 0; v < nodes.length; v++) {
+      const nodeV = nodes[v]
+      const disp = displacements[v]
+      if (!nodeV || !disp) continue
+
+      const dist = Math.sqrt(disp.dx * disp.dx + disp.dy * disp.dy + disp.dz * disp.dz)
+
+      if (dist > 0) {
+        // 温度を上限として移動
+        const limitedDist = Math.min(dist, temperature)
+        nodeV.x += (disp.dx / dist) * limitedDist
+        nodeV.y += (disp.dy / dist) * limitedDist
+        nodeV.z += (disp.dz / dist) * limitedDist
+      }
+    }
+
+    // 5. クーリング (徐々に移動量を小さくして安定させる)
+    temperature *= 0.95
+  }
+
+  // 最後に全体の中心を (0,0,0) に合わせる
+  if (nodes.length > 0) {
+    let cx = 0, cy = 0, cz = 0
+    for (const n of nodes) {
+      cx += n.x
+      cy += n.y
+      cz += n.z
+    }
+    cx /= nodes.length
+    cy /= nodes.length
+    cz /= nodes.length
+    for (const n of nodes) {
+      n.x -= cx
+      n.y -= cy
+      n.z -= cz
+    }
+  }
+
+  return nodes
+}
+
+
 // ---------------------------------------------------------------------------
 // メインの変換関数
 // ---------------------------------------------------------------------------
@@ -70,7 +213,7 @@ export const randomSphereLayout: LayoutFn = (
  *
  * @example
  * ```ts
- * import { computeGraphLayout, gridLayout } from '@/utils/graph-layout'
+ * import { computeGraphLayout, randomSphereLayout, forceDirectedLayout } from '@/utils/graph-layout'
  *
  * const data: GraphData = {
  *   nodeCount: 5,
@@ -83,13 +226,13 @@ export const randomSphereLayout: LayoutFn = (
  * // デフォルト（ランダム球面）
  * const layout1 = computeGraphLayout(data)
  *
- * // グリッド配置、半径 100
- * const layout2 = computeGraphLayout(data, gridLayout, 100)
+ * // 力学モデル配置 (分子モデルのような自然な配置)
+ * const layout2 = computeGraphLayout(data, forceDirectedLayout)
  * ```
  */
 export function computeGraphLayout(
   data: GraphData,
-  layoutFn: LayoutFn = randomSphereLayout,
+  layoutFn: LayoutFn = forceDirectedLayout,
   radius = 50,
 ): GraphNode3D[] {
   if (data.nodeCount <= 0) {
