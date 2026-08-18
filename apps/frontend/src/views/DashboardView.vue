@@ -12,8 +12,8 @@
             aria-hidden="true"
           >B</span>
           <span>
-            <strong>Babylon Stack</strong>
-            <small>Vue · Hono · PostgreSQL</small>
+            <strong>Graph Visualizer</strong>
+            <small>Vue · Babylon.js · Hono</small>
           </span>
         </RouterLink>
 
@@ -34,12 +34,11 @@
       <section class="hero">
         <div class="hero__copy">
           <p class="eyebrow">
-            REAL-TIME 3D TEMPLATE
+            GRAPH VISUALIZER
           </p>
-          <h1>Webアプリと3D体験を、<br>ひとつの型安全な基盤から。</h1>
+          <h1>3D Graph Viewer</h1>
           <p>
-            VueのUI、Babylon.jsのレンダリング、Hono API、PostgreSQLを分離しながら、
-            すぐに拡張できるテンプレートです。
+            テキストエディタに入力したグラフデータを3D空間に可視化します。
           </p>
           <div
             class="tech-list"
@@ -52,6 +51,7 @@
           </div>
         </div>
 
+        <!-- 描画担当側と衝突しないよう元のまま配置 -->
         <BabylonCanvas class="hero__viewer" />
       </section>
 
@@ -62,13 +62,13 @@
         <div class="section-heading">
           <div>
             <p class="eyebrow">
-              CONNECTED DATA
+              GRAPH INPUT
             </p>
             <h2 id="workspace-title">
-              アプリケーション機能
+              グラフデータ入力
             </h2>
           </div>
-          <p>既存の認証・CRUD・オブジェクトストレージ機能もそのまま利用できます。</p>
+          <p>グラフデータを入力して反映ボタンを押してください。</p>
         </div>
 
         <div class="workspace__grid">
@@ -76,167 +76,38 @@
             <div class="panel__heading">
               <div>
                 <span class="panel__number">01</span>
-                <h3>アイテム</h3>
+                <h3>エディタ</h3>
               </div>
-              <span class="count-badge">{{ itemsStore.filteredItems.length }} 件</span>
             </div>
 
             <form
-              class="inline-form"
-              @submit.prevent="handleAddItem"
+              class="editor-form"
+              @submit.prevent="handleApplyGraph"
             >
-              <label
-                class="sr-only"
-                for="new-item"
-              >アイテム名</label>
-              <input
-                id="new-item"
-                v-model="newItemName"
-                type="text"
-                placeholder="アイテム名を入力"
-              >
-              <button
-                class="button button--primary"
-                type="submit"
-                :disabled="!newItemName.trim() || itemsStore.loading"
-              >
-                {{ itemsStore.loading ? '処理中…' : '追加' }}
-              </button>
-            </form>
+              <textarea
+                v-model="rawInput"
+                class="graph-textarea"
+                rows="10"
+                placeholder="5 5&#10;1 2&#10;2 3&#10;3 4&#10;4 5&#10;5 1"
+                spellcheck="false"
+              />
 
-            <p
-              v-if="itemsStore.error"
-              class="feedback feedback--error"
-            >
-              {{ itemsStore.error }}
-            </p>
-            <p
-              v-if="itemsStore.loading && itemsStore.filteredItems.length === 0"
-              class="feedback"
-            >
-              読み込み中…
-            </p>
-            <div
-              v-else-if="itemsStore.filteredItems.length > 0"
-              class="table-wrap"
-            >
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">
-                      #
-                    </th>
-                    <th scope="col">
-                      名前
-                    </th>
-                    <th scope="col">
-                      <span class="sr-only">操作</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(item, index) in itemsStore.filteredItems"
-                    :key="item.id"
-                  >
-                    <td>{{ String(index + 1).padStart(2, '0') }}</td>
-                    <td>{{ item.name }}</td>
-                    <td class="table-actions">
-                      <button
-                        class="text-button text-button--danger"
-                        type="button"
-                        @click="handleDeleteItem(item.id)"
-                      >
-                        削除
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p
-              v-else
-              class="empty-state"
-            >
-              アイテムが登録されていません。
-            </p>
-          </article>
-
-          <article class="panel">
-            <div class="panel__heading">
-              <div>
-                <span class="panel__number">02</span>
-                <h3>画像アセット</h3>
-              </div>
-              <span class="count-badge">{{ imagesStore.sortedImages.length }} 件</span>
-            </div>
-
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              hidden
-              @change="handleFileSelect"
-            >
-            <button
-              class="upload-zone"
-              type="button"
-              :disabled="imagesStore.uploading"
-              @click="triggerFileInput"
-            >
-              <span
-                class="upload-zone__icon"
-                aria-hidden="true"
-              >↑</span>
-              <span>
-                <strong>{{ imagesStore.uploading ? 'アップロード中…' : '画像をアップロード' }}</strong>
-                <small>JPEG / PNG / GIF / WebP · 最大10MB</small>
-              </span>
-            </button>
-
-            <p
-              v-if="imagesStore.error"
-              class="feedback feedback--error"
-            >
-              {{ imagesStore.error }}
-            </p>
-            <p
-              v-if="imagesStore.loading && imagesStore.sortedImages.length === 0"
-              class="feedback"
-            >
-              読み込み中…
-            </p>
-            <div
-              v-else-if="imagesStore.sortedImages.length > 0"
-              class="asset-list"
-            >
-              <div
-                v-for="image in imagesStore.sortedImages"
-                :key="image.id"
-                class="asset-row"
-              >
-                <img
-                  :src="image.url"
-                  :alt="image.original_name"
-                  width="48"
-                  height="48"
-                >
-                <span class="asset-row__name">{{ image.original_name }}</span>
+              <div class="button-group">
                 <button
-                  class="text-button text-button--danger"
-                  type="button"
-                  @click="handleDeleteImage(image.id)"
+                  class="button button--primary"
+                  type="submit"
                 >
-                  削除
+                  グラフを反映
+                </button>
+                <button
+                  class="button button--ghost"
+                  type="button"
+                  @click="handleClear"
+                >
+                  クリア
                 </button>
               </div>
-            </div>
-            <p
-              v-else
-              class="empty-state"
-            >
-              画像が登録されていません。
-            </p>
+            </form>
           </article>
         </div>
       </section>
@@ -248,70 +119,53 @@
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BabylonCanvas from '@/components/BabylonCanvas.vue'
-import { useAuthStore, useImagesStore, useItemsStore } from '@/stores'
+import { useAuthStore } from '@/stores'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const itemsStore = useItemsStore()
-const imagesStore = useImagesStore()
-const newItemName = ref('')
-const fileInputRef = ref<HTMLInputElement | null>(null)
+
+// グラフ入力テキスト
+const rawInput = ref('')
 
 const handleLogout = async (): Promise<void> => {
   await authStore.logout()
   await router.push('/login')
 }
 
-const handleAddItem = async (): Promise<void> => {
-  const name = newItemName.value.trim()
-
-  if (!name) {
+// 反映ボタンを押した時の処理
+const handleApplyGraph = (): void => {
+  if (!rawInput.value.trim()) {
     return
   }
 
-  try {
-    await itemsStore.addItem({ name })
-    newItemName.value = ''
-  } catch {
-    // Store exposes the user-facing error.
-  }
+  // ここで入力テキスト（rawInput.value）をもとに処理を行います
+  console.log('グラフ入力データ:', rawInput.value)
 }
 
-const handleDeleteItem = async (id: string): Promise<void> => {
-  try {
-    await itemsStore.deleteItem(id)
-  } catch {
-    // Store exposes the user-facing error.
-  }
-}
-
-const triggerFileInput = (): void => {
-  fileInputRef.value?.click()
-}
-
-const handleFileSelect = async (event: Event): Promise<void> => {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-
-  if (!file) {
-    return
-  }
-
-  try {
-    await imagesStore.uploadImage(file)
-  } catch {
-    // Store exposes the user-facing error.
-  } finally {
-    input.value = ''
-  }
-}
-
-const handleDeleteImage = async (id: string): Promise<void> => {
-  try {
-    await imagesStore.deleteImage(id)
-  } catch {
-    // Store exposes the user-facing error.
-  }
+const handleClear = (): void => {
+  rawInput.value = ''
 }
 </script>
+
+<style scoped>
+.graph-textarea {
+  width: 100%;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.95rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #333);
+  background-color: var(--input-bg, #111);
+  color: #fff;
+  resize: vertical;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+</style>
 
