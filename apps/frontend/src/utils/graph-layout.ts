@@ -88,15 +88,9 @@ export const forceDirectedLayout: LayoutFn = (
     // 2. 反発力の計算 (全頂点ペア)
     for (let v = 0; v < nodes.length; v++) {
       for (let u = v + 1; u < nodes.length; u++) {
-        const nodeV = nodes[v]
-        const nodeU = nodes[u]
-        const dispV = displacements[v]
-        const dispU = displacements[u]
-        if (!nodeV || !nodeU || !dispV || !dispU) continue
-
-        let dx = nodeV.x - nodeU.x
-        let dy = nodeV.y - nodeU.y
-        let dz = nodeV.z - nodeU.z
+        let dx = nodes[v].x - nodes[u].x
+        let dy = nodes[v].y - nodes[u].y
+        let dz = nodes[v].z - nodes[u].z
 
         let distSquared = dx * dx + dy * dy + dz * dz
         if (distSquared === 0) {
@@ -113,13 +107,13 @@ export const forceDirectedLayout: LayoutFn = (
         const forceY = (dy / dist) * force
         const forceZ = (dz / dist) * force
 
-        dispV.dx += forceX
-        dispV.dy += forceY
-        dispV.dz += forceZ
+        displacements[v].dx += forceX
+        displacements[v].dy += forceY
+        displacements[v].dz += forceZ
 
-        dispU.dx -= forceX
-        dispU.dy -= forceY
-        dispU.dz -= forceZ
+        displacements[u].dx -= forceX
+        displacements[u].dy -= forceY
+        displacements[u].dz -= forceZ
       }
     }
 
@@ -127,16 +121,11 @@ export const forceDirectedLayout: LayoutFn = (
     for (const edge of data.edges) {
       const v = edge.source
       const u = edge.target
-      
-      const nodeV = nodes[v]
-      const nodeU = nodes[u]
-      const dispV = displacements[v]
-      const dispU = displacements[u]
-      if (!nodeV || !nodeU || !dispV || !dispU) continue
+      if (!nodes[v] || !nodes[u]) continue
 
-      const dx = nodeV.x - nodeU.x
-      const dy = nodeV.y - nodeU.y
-      const dz = nodeV.z - nodeU.z
+      const dx = nodes[v].x - nodes[u].x
+      const dy = nodes[v].y - nodes[u].y
+      const dz = nodes[v].z - nodes[u].z
 
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
       if (dist === 0) continue
@@ -147,29 +136,26 @@ export const forceDirectedLayout: LayoutFn = (
       const forceY = (dy / dist) * force
       const forceZ = (dz / dist) * force
 
-      dispV.dx -= forceX
-      dispV.dy -= forceY
-      dispV.dz -= forceZ
+      displacements[v].dx -= forceX
+      displacements[v].dy -= forceY
+      displacements[v].dz -= forceZ
 
-      dispU.dx += forceX
-      dispU.dy += forceY
-      dispU.dz += forceZ
+      displacements[u].dx += forceX
+      displacements[u].dy += forceY
+      displacements[u].dz += forceZ
     }
 
     // 4. 座標の更新 (温度による移動量の制限)
     for (let v = 0; v < nodes.length; v++) {
-      const nodeV = nodes[v]
       const disp = displacements[v]
-      if (!nodeV || !disp) continue
-
       const dist = Math.sqrt(disp.dx * disp.dx + disp.dy * disp.dy + disp.dz * disp.dz)
 
       if (dist > 0) {
         // 温度を上限として移動
         const limitedDist = Math.min(dist, temperature)
-        nodeV.x += (disp.dx / dist) * limitedDist
-        nodeV.y += (disp.dy / dist) * limitedDist
-        nodeV.z += (disp.dz / dist) * limitedDist
+        nodes[v].x += (disp.dx / dist) * limitedDist
+        nodes[v].y += (disp.dy / dist) * limitedDist
+        nodes[v].z += (disp.dz / dist) * limitedDist
       }
     }
 
@@ -193,6 +179,11 @@ export const forceDirectedLayout: LayoutFn = (
       n.y -= cy
       n.z -= cz
     }
+  }
+  for (const n of nodes) {
+    n.x /= 20
+    n.y /= 20
+    n.z /= 20
   }
 
   return nodes
@@ -232,7 +223,7 @@ export const forceDirectedLayout: LayoutFn = (
  */
 export function computeGraphLayout(
   data: GraphData,
-  layoutFn: LayoutFn = forceDirectedLayout,
+  layoutFn: LayoutFn = randomSphereLayout,
   radius = 50,
 ): GraphNode3D[] {
   if (data.nodeCount <= 0) {
