@@ -223,7 +223,7 @@ export const forceDirectedLayout: LayoutFn = (
  */
 export function computeGraphLayout(
   data: GraphData,
-  layoutFn: LayoutFn = randomSphereLayout,
+  layoutFn: LayoutFn = forceDirectedLayout,
   radius = 50,
 ): GraphNode3D[] {
   if (data.nodeCount <= 0) {
