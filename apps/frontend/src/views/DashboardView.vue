@@ -52,7 +52,10 @@
           </div>
         </div>
 
-        <BabylonCanvas class="hero__viewer" />
+        <BabylonCanvas
+          class="hero__viewer"
+          :layout="sampleLayout"
+        />
       </section>
 
       <section
@@ -248,7 +251,9 @@
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BabylonCanvas from '@/components/BabylonCanvas.vue'
+import type { GraphLayout } from '@/types/graph.types'
 import { useAuthStore, useImagesStore, useItemsStore } from '@/stores'
+import { buildGraphLayout } from '@/utils/graph-layout'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -256,6 +261,18 @@ const itemsStore = useItemsStore()
 const imagesStore = useImagesStore()
 const newItemName = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+const graphData = {
+  nodeCount: 4,
+  edges: [
+    { source: 0, target: 1 },
+    { source: 0, target: 2 },
+    { source: 1, target: 3 },
+    { source: 2, target: 3 },
+  ],
+}
+
+const sampleLayout: GraphLayout = buildGraphLayout(graphData)
 
 const handleLogout = async (): Promise<void> => {
   await authStore.logout()
