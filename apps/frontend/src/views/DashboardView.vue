@@ -108,6 +108,14 @@
                 </button>
               </div>
             </form>
+
+            <!-- パースエラー時の表示 -->
+            <p
+              v-if="errorMessage"
+              class="feedback feedback--error"
+            >
+              {{ errorMessage }}
+            </p>
           </article>
         </div>
       </section>
@@ -120,30 +128,97 @@ import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BabylonCanvas from '@/components/BabylonCanvas.vue'
 import { useAuthStore } from '@/stores'
+import type { GraphData, GraphEdge } from '@/types/graph.types'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 // グラフ入力テキスト
 const rawInput = ref('')
+const errorMessage = ref('')
 
 const handleLogout = async (): Promise<void> => {
   await authStore.logout()
   await router.push('/login')
 }
 
+/**
+ * テキスト（AtCoder形式）をパースして GraphData を作る関数
+ */
+const parseGraphText = (text: string): GraphData => {
+  // 空白・改行で分解
+  const tokens = text.trim().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) {
+    throw new Error('入力が空です。')
+  }
+
+  // 1番目: 頂点数 N
+  const nodeCount = parseInt(tokens[0], 10)
+  if (isNaN(nodeCount) || nodeCount <= 0) {
+    throw new Error('1行目には頂点数 N を入力してください。')
+  }
+
+  const edges: GraphEdge[] = []
+  
+  // 2番目に M (辺数) がある場合はスキップ、以降を辺として読み取る
+  let tokenIdx = tokens.length > 1 ? 2 : 1
+
+  while (tokenIdx < tokens.length) {
+    if (tokenIdx + 1 >= tokens.length) {
+      throw new Error(`辺の指定が不正です（頂点数が奇数です: ${tokens[tokenIdx]}）`)
+    }
+
+    const uRaw = parseInt(tokens[tokenIdx], 10)
+    const vRaw = parseInt(tokens[tokenIdx + 1], 10)
+
+    if (isNaN(uRaw) || isNaN(vRaw)) {
+      throw new Error(`数値以外の値が含まれています: "${tokens[tokenIdx]}" "${tokens[tokenIdx + 1]}"`)
+    }
+
+    // AtCoder の 1-indexed を 0-indexed に変換
+    const u = uRaw - 1
+    const v = vRaw - 1
+
+    if (u < 0 || u >= nodeCount || v < 0 || v >= nodeCount) {
+      throw new Error(`頂点番号が範囲外です: (${uRaw}, ${vRaw}) / 頂点数: ${nodeCount}`)
+    }
+
+    edges.push({ source: u, target: v })
+    tokenIdx += 2
+  }
+
+  return { nodeCount, edges }
+}
+
 // 反映ボタンを押した時の処理
 const handleApplyGraph = (): void => {
+  errorMessage.value = ''
+
   if (!rawInput.value.trim()) {
     return
   }
 
-  // ここで入力テキスト（rawInput.value）をもとに処理を行います
-  console.log('グラフ入力データ:', rawInput.value)
+  try {
+    // ここでパースを実行！
+    const parsedData: GraphData = parseGraphText(rawInput.value)
+
+    // コンソールでパース結果を確認
+    console.log('✅ パース成功 (GraphData):', parsedData)
+
+    // ※ 計算担当の関数や Store が出来たらここに渡します
+    // 例: calculateLayout(parsedData) や graphStore.setGraphData(parsedData)
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      errorMessage.value = err.message
+    } else {
+      errorMessage.value = 'パースエラーが発生しました。'
+    }
+  }
 }
 
 const handleClear = (): void => {
   rawInput.value = ''
+  errorMessage.value = ''
 }
 </script>
 
@@ -166,6 +241,12 @@ const handleClear = (): void => {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.75rem;
+}
+
+.feedback--error {
+  color: #ff6e7e;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
 }
 </style>
 
