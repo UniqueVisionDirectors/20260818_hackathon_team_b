@@ -52,7 +52,7 @@
         </div>
 
         <!-- 描画担当側と衝突しないよう元のまま配置 -->
-        <BabylonCanvas class="hero__viewer" />
+        <BabylonCanvas class="hero__viewer" :layout="currentLayout" />
       </section>
 
       <section
@@ -124,14 +124,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BabylonCanvas from '@/components/BabylonCanvas.vue'
 import { useAuthStore } from '@/stores'
-import type { GraphData, GraphEdge } from '@/types/graph.types'
+import { useGraphStore } from '@/stores/graph'
+import { computeGraphLayout } from '@/utils/graph-layout'
+import type { GraphData, GraphEdge, GraphLayout } from '@/types/graph.types'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const graphStore = useGraphStore()
+
+const currentLayout = computed<GraphLayout | undefined>(() => {
+  if (!graphStore.graphData) return undefined
+  const nodes = computeGraphLayout(graphStore.graphData)
+  return { nodes, edges: graphStore.graphData.edges }
+})
 
 // グラフ入力テキスト
 const rawInput = ref('')
@@ -205,8 +214,8 @@ const handleApplyGraph = (): void => {
     // コンソールでパース結果を確認
     console.log('✅ パース成功 (GraphData):', parsedData)
 
-    // ※ 計算担当の関数や Store が出来たらここに渡します
-    // 例: calculateLayout(parsedData) や graphStore.setGraphData(parsedData)
+    // Store にデータを渡す
+    graphStore.setGraphData(parsedData)
   } catch (err: unknown) {
     if (err instanceof Error) {
       errorMessage.value = err.message
