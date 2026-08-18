@@ -1,8 +1,10 @@
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine'
 import type { AssetContainer } from '@babylonjs/core/assetContainer'
 import type { Scene } from '@babylonjs/core/scene'
+import type { GraphLayout } from '@/types/graph.types'
 import { createDemoScene } from './createDemoScene'
 import { createEngine } from './createEngine'
+import { createGraphScene } from './createGraphScene'
 import type { RendererBackend, RendererInfo } from './types'
 
 export interface BabylonRendererOptions {
@@ -74,6 +76,19 @@ export class BabylonRenderer {
       return
     }
 
+    this.startRendering()
+  }
+
+  renderGraph(layout: GraphLayout): void {
+    if (this.disposed || !this.engine) {
+      return
+    }
+
+    if (this.scene) {
+      this.scene.dispose()
+    }
+
+    this.scene = createGraphScene(this.engine, this.canvas, layout)
     this.startRendering()
   }
 

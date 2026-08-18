@@ -33,9 +33,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { BabylonRenderer } from '@/renderer/BabylonRenderer'
+import type { GraphLayout } from '@/types/graph.types'
 import type { RendererInfo } from '@/renderer/types'
+
+const props = defineProps<{
+  layout?: GraphLayout
+}>()
 
 type ViewerStatus = 'idle' | 'initializing' | 'ready' | 'error'
 
@@ -109,6 +114,10 @@ onMounted(async () => {
       return
     }
 
+    if (props.layout) {
+      renderer.renderGraph(props.layout)
+    }
+
     rendererInfo.value = info
     renderer.setSuspended(document.hidden)
     status.value = 'ready'
@@ -125,6 +134,18 @@ onMounted(async () => {
     emit('error', error)
   }
 })
+
+watch(
+  () => props.layout,
+  (nextLayout) => {
+    if (!nextLayout || !rendererRef.value) {
+      return
+    }
+
+    rendererRef.value.renderGraph(nextLayout)
+  },
+  { deep: true },
+)
 
 onUnmounted(() => {
   unmounted = true
